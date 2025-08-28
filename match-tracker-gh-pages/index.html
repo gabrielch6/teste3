@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Match Tracker — Futsal v12</title>
+  <style>
+    :root{
+      --bg:#0f1115;--panel:#0b0e16;--card:#121727;
+      --muted:#9aa2b1;--text:#e8ecf1;--accent:#4f8cff;
+      --ok:#15c27b;--warn:#ffcc00;--danger:#ff5d5d;
+      --ring:rgba(79,140,255,.35);--pink:#ff5fa3;--blue:#2f72ff;
+      --greenGrad:linear-gradient(180deg,#10351e,#0b1f13);
+      --orangeGrad:linear-gradient(180deg,#3a240a,#1c1308);
+      --pausedGrad:linear-gradient(180deg,#3a0a0a,#1c0a0a);
+      --fieldGrad:linear-gradient(180deg,#2a0f0f,#140707);
+      --oppGrad:linear-gradient(180deg,#4a420a,#2b2506);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:radial-gradient(1200px 1200px at 80% -10%, #182033 0%, var(--bg) 60%);
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      -webkit-tap-highlight-color: transparent;
+    }
+    header{
+      position:sticky; top:0; z-index:60;
+      background:linear-gradient(180deg, rgba(10,12,18,.95), rgba(10,12,18,.7) 60%, rgba(10,12,18,0));
+      backdrop-filter: blur(8px);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      padding:10px 12px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .title{display:flex; align-items:center; gap:10px; font-weight:800;}
+    .tabs{display:flex; gap:8px; flex-wrap:wrap}
+    .tab{background:#1a1f2e; border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:8px 12px; font-weight:700; cursor:pointer}
+    .tab.active{background:#2a3250; border-color:#3b4d93}
+    .controls{display:flex; gap:8px; flex-wrap:wrap}
+    button{appearance:none; border:0; border-radius:12px; padding:8px 12px; background:#212537; color:var(--text); font-weight:700; box-shadow:0 0 0 1px rgba(255,255,255,.06); cursor:pointer}
+    button:active{transform:scale(.98)}
+    .accent{background:linear-gradient(180deg, #2a4ea8, #1b2f74); box-shadow:0 0 0 1px #2c4fb9, 0 0 0 6px rgba(79,140,255,.35);}
+    .danger{background:linear-gradient(180deg, #893131, #5a1d1d);}
+    .ghost{background:#1a1d2b}
+    .badge{background:#0e121e; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:6px 10px; font-size:12px}
+    .hint{color:var(--muted); font-size:12px}
+
+    /* Layouts */
+    .layout{display:grid; gap:12px; padding:12px 12px 110px; max-width:1400px; margin:0 auto;}
+    .layout.main{grid-template-columns: 2fr 1fr; align-items:start;}
+    .layout.full{grid-template-columns: 1fr;}
+
+    /* Cards grid */
+    .grid{display:grid; gap:8px}
+    .grid.profiles{grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));}
+    .grid.six{grid-template-columns: repeat(2, 1fr);}
+    .rowTitle{font-weight:800; color:var(--muted); margin:6px 0 2px 4px; font-size:12px}
+
+    .card{
+      background:linear-gradient(180deg, #171b28, #10131c);
+      border-radius:14px; padding:10px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.3);
+      display:flex; flex-direction:column; gap:8px; min-height: 180px;
+      transition: box-shadow .2s ease, transform .02s ease;
+    }
+    .card.field{ background: var(--fieldGrad); box-shadow: 0 0 0 2px rgba(255,90,90,.35); }
+    .card.opponent{ background: var(--oppGrad); box-shadow: 0 0 0 2px rgba(255, 221, 87, .6); }
+    .card.gk{ background: linear-gradient(180deg, #0e1730, #081025); box-shadow: 0 0 0 2px rgba(47,114,255,.5); }
+    .card:active{transform:scale(.995)}
+
+    .name{display:flex; align-items:center; gap:8px; justify-content:space-between}
+    .name input{width:100%; background:#0f1320; color:var(--text); border:1px solid rgba(255,255,255,.08); border-radius:10px; font-size:14px; font-weight:800; padding:8px 10px}
+
+    /* Avatar */
+    .avatarRow{display:flex; align-items:center; gap:10px}
+    .avatar{width:44px; height:44px; border-radius:50%; background:#2a3250; color:#dfe6ff; display:flex; align-items:center; justify-content:center; font-weight:900; box-shadow:0 0 0 1px rgba(255,255,255,.08); background-size:cover; background-position:center}
+    .avatar.lg{width:64px;height:64px}
+    .avatar.sm{width:36px;height:36px}
+    .avatarBtn{padding:6px 8px}
+    .roleSel{background:#0f1320; color:var(--text); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:6px 8px; font-weight:800}
+
+    .picker{position:relative}
+    .picker button{padding:8px 10px}
+    .pickerList{
+      position:absolute; top:110%; right:0; min-width:220px;
+      background:#0f1320; border:1px solid rgba(255,255,255,.1); border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.35);
+      display:none; max-height:260px; overflow:auto; z-index:40;
+    }
+    .pickerList.open{display:block}
+    .pickerList div{padding:8px 10px; cursor:pointer}
+    .pickerList div:hover{background:#1a2037}
+
+    .stats{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px}
+    .stats.field{grid-template-columns:repeat(4, 1fr)}
+    .stat{
+      background:#0f1320; border-radius:12px; padding:8px;
+      display:flex; flex-direction:column; align-items:stretch; justify-content:space-between;
+      border:2px solid rgba(255,255,255,.10); gap:6px; min-height:140px;
+    }
+    .stat label{font-size:11px; letter-spacing:.3px; color:var(--muted); text-transform:uppercase; font-weight:800; text-align:center}
+    .count{font-size:22px; font-weight:900; text-align:center; height:30px; display:flex; align-items:center; justify-content:center}
+    .plus,.minus,.action{
+      width:100%; height:44px; display:block;
+      font-size:18px; font-weight:900; border-radius:10px; cursor:pointer; padding:0;
+      background:#1d2a46;
+    }
+    .minus{background:#3a1d1d}
+    .action{height:52px}
+
+    /* Column outline colors (FIELD: 4 cols) */
+    .stats.field .stat:nth-child(4n+1){ border-color:#15c27b; box-shadow:0 0 0 1px rgba(21,194,123,.25) inset; }
+    .stats.field .stat:nth-child(4n+2){ border-color:#4f8cff; box-shadow:0 0 0 1px rgba(79,140,255,.25) inset; }
+    .stats.field .stat:nth-child(4n+3){ border-color:#00c2ff; box-shadow:0 0 0 1px rgba(0,194,255,.25) inset; }
+    .stats.field .stat:nth-child(4n+4){ border-color:#ffcc00; box-shadow:0 0 0 1px rgba(255,204,0,.25) inset; }
+
+    /* Column outline colors (GK: 5 cols) */
+    .stats:not(.field) .stat:nth-child(5n+1){ border-color:#ff5d5d; box-shadow:0 0 0 1px rgba(255,93,93,.25) inset; }
+    .stats:not(.field) .stat:nth-child(5n+2){ border-color:#15c27b; box-shadow:0 0 0 1px rgba(21,194,123,.25) inset; }
+    .stats:not(.field) .stat:nth-child(5n+3){ border-color:#4f8cff; box-shadow:0 0 0 1px rgba(79,140,255,.25) inset; }
+    .stats:not(.field) .stat:nth-child(5n+4){ border-color:#ff9800; box-shadow:0 0 0 1px rgba(255,152,0,.25) inset; }
+    .stats:not(.field) .stat:nth-child(5n+5){ border-color:#a974ff; box-shadow:0 0 0 1px rgba(169,116,255,.25) inset; }
+
+    /* Right panel / Scoreboard */
+    .panel{
+      border-radius:16px; padding:12px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 10px 24px rgba(0,0,0,.35);
+      position:sticky; top:66px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .panel.green{ background: var(--greenGrad); border:1px solid rgba(46, 204, 113, .35); }
+    .panel.orange{ background: var(--orangeGrad); border:1px solid rgba(255, 152, 0, .35); }
+    .panel.paused{ background: var(--pausedGrad); border:1px solid rgba(255,93,93,.5); }
+    .panel h3{margin:0; font-size:16px}
+    .timerDisplay{font-size:48px; font-weight:900; text-align:center; letter-spacing:1px}
+
+    .scoreboard{display:flex; flex-direction:column; gap:8px; align-items:center}
+    .scoreRow{display:flex; gap:12px; align-items:center; font-weight:900; font-size:32px}
+    .teamBox{display:flex; flex-direction:column; align-items:center; gap:2px}
+    .scoreBadge{padding:6px 14px; border-radius:12px; background:#1a1f2e; border:1px solid rgba(255,255,255,.08); font-size:28px}
+    .foulsRow{font-size:12px; color:#cbd5e1; opacity:.85}
+
+    .halfRow{display:flex; gap:8px; justify-content:center; align-items:center}
+
+    /* Mini fouls cards under scoreboard */
+    .miniFouls{display:flex; flex-direction:column; gap:6px}
+    .hcard{
+      display:flex; align-items:center; gap:8px;
+      background:#101521; border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:8px;
+      min-height:56px;
+    }
+    .hcard .avatar{width:36px;height:36px}
+    .hname{flex:1; font-weight:800}
+    .foulBtns{display:flex; gap:6px}
+    .foulGroup{display:flex; align-items:center; gap:4px; background:#0e1320; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:4px 6px}
+    .foulGroup .count{font-size:16px; width:22px}
+    .mini{height:30px; width:30px; display:flex; align-items:center; justify-content:center; font-weight:900; border-radius:8px}
+    .mini.plus{background:#1d2a46}
+    .mini.minus{background:#3a1d1d}
+
+    /* Tempo page */
+    table{width:100%; border-collapse:collapse; font-size:14px}
+    th, td{border-bottom:1px solid rgba(255,255,255,.08); padding:8px 6px; text-align:left}
+    th{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px}
+    .note{font-size:12px; color:var(--muted)}
+
+    .fivev4Box{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px}
+    .pill{background:#1a1f2e; border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:6px 10px; font-size:13px; font-weight:800}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span>⚽ Match Tracker — Futsal</span>
+      <small id="matchLabel" style="color:var(--muted)">Jogo atual</small>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tabPerfis">Perfis</div>
+      <div class="tab" id="tabH1">1ª Parte</div>
+      <div class="tab" id="tabH2">2ª Parte</div>
+      <div class="tab" id="tabTempo">Tempo</div>
+      <div class="tab" id="tabDefs">Definições</div>
+    </div>
+    <div class="controls">
+      <button id="renameMatchBtn" class="ghost">Renomear</button>
+      <button id="exportBtn" class="accent">Exportar CSV</button>
+      <button id="resetBtn" class="danger">Reset</button>
+    </div>
+  </header>
+
+  <!-- PERFIS PAGE -->
+  <main id="pagePerfis" class="layout full">
+    <section>
+      <div class="grid profiles" id="profilesGrid"></div>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <button id="addFieldBtn" class="ghost">+ Atleta Campo</button>
+        <button id="addGKBtn" class="ghost">+ Guarda‑redes</button>
+      </div>
+      <div class="note" style="margin-top:8px">O primeiro cartão é o <b>Adversário</b>. Adiciona a tua equipa abaixo (Campo/GR) e fotos.</div>
+    </section>
+  </main>
+
+  <!-- H1 PAGE -->
+  <main id="pageH1" class="layout main" style="display:none">
+    <section>
+      <div class="rowTitle">Linha 1 — 1ª Parte</div>
+      <div class="grid six" id="h1GridTop"></div>
+      <div class="rowTitle">Linha 2</div>
+      <div class="grid six" id="h1GridMid"></div>
+      <div class="rowTitle">Linha 3</div>
+      <div class="grid six" id="h1GridBot"></div>
+    </section>
+    <aside class="panel green paused" id="panel_H1">
+      <h3>⏱️ 1ª Parte</h3>
+      <div class="scoreboard">
+        <div class="scoreRow">
+          <div class="teamBox">
+            <div class="scoreBadge" id="ourScore_H1">0</div>
+            <div class="foulsRow"><span id="ourFouls_H1">0</span></div>
+          </div>
+          <div style="opacity:.6">—</div>
+          <div class="teamBox">
+            <div class="scoreBadge" id="theirScore_H1">0</div>
+            <div class="foulsRow"><span id="theirFouls_H1">0</span></div>
+          </div>
+        </div>
+        <div class="timerDisplay" id="timerDisplay_H1">20:00</div>
+      </div>
+      <div class="halfRow">
+        <button id="toggleTimerBtn_H1" class="action">Iniciar / Pausar</button>
+        <button id="resetTimerBtn_H1" class="danger">Reset</button>
+      </div>
+      <div class="miniFouls" id="miniFouls_H1"></div>
+    </aside>
+  </main>
+
+  <!-- H2 PAGE -->
+  <main id="pageH2" class="layout main" style="display:none">
+    <section>
+      <div class="rowTitle">Linha 1 — 2ª Parte (mostra totais)</div>
+      <div class="grid six" id="h2GridTop"></div>
+      <div class="rowTitle">Linha 2</div>
+      <div class="grid six" id="h2GridMid"></div>
+      <div class="rowTitle">Linha 3</div>
+      <div class="grid six" id="h2GridBot"></div>
+    </section>
+    <aside class="panel orange paused" id="panel_H2">
+      <h3>⏱️ 2ª Parte</h3>
+      <div class="scoreboard">
+        <div class="scoreRow">
+          <div class="teamBox">
+            <div class="scoreBadge" id="ourScore_H2">0</div>
+            <div class="foulsRow"><span id="ourFouls_H2">0</span></div>
+          </div>
+          <div style="opacity:.6">—</div>
+          <div class="teamBox">
+            <div class="scoreBadge" id="theirScore_H2">0</div>
+            <div class="foulsRow"><span id="theirFouls_H2">0</span></div>
+          </div>
+        </div>
+        <div class="timerDisplay" id="timerDisplay_H2">20:00</div>
+      </div>
+      <div class="halfRow">
+        <button id="toggleTimerBtn_H2" class="action">Iniciar / Pausar</button>
+        <button id="resetTimerBtn_H2" class="danger">Reset</button>
+      </div>
+      <div class="miniFouls" id="miniFouls_H2"></div>
+    </aside>
+  </main>
+
+  <!-- TEMPO PAGE -->
+  <main id="pageTempo" class="layout full" style="display:none">
+    <section>
+      <div class="fivev4Box" id="fivev4Box"></div>
+      <div class="halfRow" style="justify-content:flex-start;margin-bottom:8px">
+        <label for="tempoFilter">Ver estatísticas de:</label>
+        <select id="tempoFilter">
+          <option value="ALL">Jogo todo</option>
+          <option value="H1">1ª parte</option>
+          <option value="H2">2ª parte</option>
+        </select>
+      </div>
+      <div id="timeTableWrap"></div>
+      <div class="note" style="margin-top:8px">Média por entrada = tempo total / nº entradas. (Tempo em minutos)</div>
+    </section>
+  </main>
+
+  <!-- DEFINIÇÕES PAGE -->
+  <main id="pageDefs" class="layout full" style="display:none">
+    <section>
+      <h3>Definições do Jogo</h3>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end">
+        <div>
+          <label>Tempo da 1ª Parte (min)</label><br/>
+          <input id="defMin_H1" type="number" min="1" max="60" value="20" />
+        </div>
+        <div>
+          <label>Tempo da 2ª Parte (min)</label><br/>
+          <input id="defMin_H2" type="number" min="1" max="60" value="20" />
+        </div>
+        <button id="applyDefsBtn" class="accent">Aplicar</button>
+      </div>
+      <p class="note">Ao aplicar, o tempo definido passa a ser o novo total da parte. O cronómetro não inicia automaticamente.</p>
+    </section>
+  </main>
+
+  <div class="footerbar">
+    <div class="controls">
+      <span class="hint" id="autosaveHint">Guardado ✓</span>
+    </div>
+  </div>
+
+  <script>
+    const LS_KEY = "match-tracker-v12";
+    const roles = { GK:'GK', F:'F' };
+    const HALVES = ['H1','H2'];
+
+    let state = {
+      matchName: `Jogo ${new Date().toLocaleDateString('pt-PT')}`,
+      profiles: [],
+      lineup: { GK:null, F1:null, F2:null, F3:null, F4:null },
+      opponent: { name:"Adversária", G:0, S:0, OT:0, T:0, FO:0, YC:0, RC:0, photo:null,
+                  parts:{ H1:{G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0}, H2:{G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0} } },
+      score: { us:0, them:0 },
+      halves: {
+        H1:{ duration:1200, running:false, startedAtMs:null, elapsedBeforeMs:0, lastCountedSec:0 },
+        H2:{ duration:1200, running:false, startedAtMs:null, elapsedBeforeMs:0, lastCountedSec:0 },
+      },
+      fivevfour: { timeSec:0, parts:{ H1:{timeSec:0,G:0,S:0,OT:0,T:0}, H2:{timeSec:0,G:0,S:0,OT:0,T:0} } },
+    };
+
+    function uid(){ return Math.random().toString(36).slice(2,10) }
+    function newProfile(name, role){
+      return {
+        id: uid(), name: name || (role==='GK' ? 'Guarda‑redes' : 'Atleta'), role, photo:null,
+        S:0, OT:0, T:0, G:0, GA:0, SV:0, PC:0, PF:0, FO:0, YC:0, RC:0,
+        timeSec:0, entries:0,
+        parts:{ H1:{S:0,OT:0,T:0,G:0,GA:0,SV:0,PC:0,PF:0,FO:0,YC:0,RC:0},
+                H2:{S:0,OT:0,T:0,G:0,GA:0,SV:0,PC:0,PF:0,FO:0,YC:0,RC:0} }
+      };
+    }
+
+    function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); const hint=document.getElementById('autosaveHint'); hint.textContent="Guardado ✓"; hint.style.opacity=1; setTimeout(()=>{hint.style.opacity=.5},1000); }
+    function load(){
+      const raw = localStorage.getItem(LS_KEY);
+      if(raw){ try { state = JSON.parse(raw) } catch(e){} }
+      if(!state.profiles?.length){
+        state.profiles = [ newProfile("GR 1", roles.GK) ];
+        for(let i=1;i<=8;i++) state.profiles.push(newProfile("Atleta "+i, roles.F));
+      }
+      if(!state.lineup.GK){
+        const gk = state.profiles.find(p=>p.role===roles.GK) || state.profiles[0];
+        if(gk){ state.lineup.GK = gk.id; gk.entries++; }
+      }
+      const flds = state.profiles.filter(p=>p.role===roles.F).slice(0,4);
+      ["F1","F2","F3","F4"].forEach((k,i)=>{
+        if(!state.lineup[k] && flds[i]){ state.lineup[k] = flds[i].id; flds[i].entries++; }
+      });
+      if(!state.opponent.parts){ state.opponent.parts = { H1:{G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0}, H2:{G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0} }; }
+      paintAll();
+      setupRAF();
+    }
+
+    // Tabs
+    function showPage(id){
+      document.getElementById('pagePerfis').style.display = id==='Perfis'?'grid':'none';
+      document.getElementById('pageH1').style.display     = id==='H1'    ?'grid':'none';
+      document.getElementById('pageH2').style.display     = id==='H2'    ?'grid':'none';
+      document.getElementById('pageTempo').style.display  = id==='Tempo' ?'grid':'none';
+      document.getElementById('pageDefs').style.display   = id==='Defs'  ?'grid':'none';
+      for(const t of ['tabPerfis','tabH1','tabH2','tabTempo','tabDefs']) document.getElementById(t).classList.remove('active');
+      document.getElementById('tab'+id).classList.add('active');
+      if(id==='Tempo'){ buildFivev4Box(); buildTimeTable(); }
+    }
+    document.getElementById('tabPerfis').onclick=()=>showPage('Perfis');
+    document.getElementById('tabH1').onclick=()=>showPage('H1');
+    document.getElementById('tabH2').onclick=()=>showPage('H2');
+    document.getElementById('tabTempo').onclick=()=>showPage('Tempo');
+    document.getElementById('tabDefs').onclick=()=>showPage('Defs');
+
+    // Header buttons
+    document.getElementById('renameMatchBtn').onclick = ()=>{
+      const name = prompt("Nome do jogo:", state.matchName||"");
+      if(name){ state.matchName = name.trim(); document.getElementById('matchLabel').textContent = state.matchName; save(); }
+    };
+    document.getElementById('resetBtn').onclick = ()=>{
+      if(!confirm("Reset geral a contadores, faltas e tempos?")) return;
+      for(const p of state.profiles){
+        Object.assign(p, {S:0,OT:0,T:0,G:0,GA:0,SV:0,PC:0,PF:0,FO:0,YC:0,RC:0,timeSec:0,entries:0});
+        p.parts = { H1:{S:0,OT:0,T:0,G:0,GA:0,SV:0,PC:0,PF:0,FO:0,YC:0,RC:0},
+                    H2:{S:0,OT:0,T:0,G:0,GA:0,SV:0,PC:0,PF:0,FO:0,YC:0,RC:0} };
+      }
+      state.opponent = { name: state.opponent.name || "Adversária", photo: state.opponent.photo || null,
+        G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0, parts:{ H1:{G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0}, H2:{G:0,S:0,OT:0,T:0,FO:0,YC:0,RC:0} } };
+      state.score = { us:0, them:0 };
+      state.halves = {
+        H1:{ duration:state.halves.H1.duration||1200, running:false, startedAtMs:null, elapsedBeforeMs:0, lastCountedSec:0 },
+        H2:{ duration:state.halves.H2.duration||1200, running:false, startedAtMs:null, elapsedBeforeMs:0, lastCountedSec:0 },
+      };
+      state.fivevfour = { timeSec:0, parts:{ H1:{timeSec:0,G:0,S:0,OT:0,T:0}, H2:{timeSec:0,G:0,S:0,OT:0,T:0} } };
+      // keep lineup, set entries 1
+      for(const k of ['GK','F1','F2','F3','F4']){
+        const id = state.lineup[k];
+        const p = state.profiles.find(x=>x.id===id);
+        if(p) p.entries = 1;
+      }
+      paintAll(); save();
+    };
+    document.getElementById('exportBtn').onclick = ()=>{
+      const csv = toCSV();
+      const fname = (state.matchName || "jogo") + " - stats.csv";
+      download(fname, csv);
+    };
+
+    // ---------- Photos helpers ----------
+    function setAvatarEl(el, profile){
+      if(profile && profile.photo){
+        el.style.backgroundImage = `url('${profile.photo}')`; el.textContent = "";
+      } else {
+        el.style.backgroundImage = "none";
+        const letter = (profile && profile.name ? profile.name.trim()[0] : "?") || "?";
+        el.textContent = letter.toUpperCase();
+      }
+    }
+    function setAvatarFromPhoto(el, photo, fallbackText){
+      if(photo){
+        el.style.backgroundImage = `url('${photo}')`; el.textContent="";
+      } else {
+        el.style.backgroundImage="none"; el.textContent=fallbackText||"?";
+      }
+    }
+    function fileToResizedDataURL(file, maxSize=512, mime="image/jpeg", quality=0.85){
+      return new Promise((resolve, reject)=>{
+        const fr = new FileReader();
+        fr.onerror = reject;
+        fr.onload = ()=>{
+          const img = new Image();
+          img.onload = ()=>{
+            const canvas = document.createElement('canvas');
+            let {width, height} = img;
+            const scale = Math.min(1, maxSize/Math.max(width, height));
+            width = Math.round(width*scale);
+            height = Math.round(height*scale);
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            try{ resolve(canvas.toDataURL(mime, quality)); }catch(e){ reject(e); }
+          };
+          img.onerror = reject;
+          img.src = fr.result;
+        };
+        fr.readAsDataURL(file);
+      });
+    }
+    async function pickPhoto(callback){
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*'; input.capture='environment';
+      input.onchange = async ()=>{
+        const file = input.files && input.files[0]; if(!file) return;
+        try{ const data = await fileToResizedDataURL(file, 640, 'image/jpeg', 0.85); callback(data); save(); }
+        catch(e){ alert("Falha ao carregar a imagem."); }
+      };
+      input.click();
+    }
+
+    // ---------- PERFIS ----------
+    function opponentProfileCard(){
+      const card = document.createElement('div'); card.className='card opponent';
+      const top = document.createElement('div'); top.className='avatarRow';
+      const av = document.createElement('div'); av.className='avatar lg'; setAvatarFromPhoto(av, state.opponent.photo, 'A'); top.appendChild(av);
+      const nameRow = document.createElement('div'); nameRow.className='name'; nameRow.style.flex=1;
+      const input = document.createElement('input'); input.value=state.opponent.name||'Adversária'; input.onchange = ()=>{ state.opponent.name = input.value.trim()||'Adversária'; paintAll(); save(); };
+      nameRow.appendChild(input); top.appendChild(nameRow); card.appendChild(top);
+
+      const actions = document.createElement('div'); actions.className='avatarRow';
+      const btnFoto = document.createElement('button'); btnFoto.className='ghost avatarBtn'; btnFoto.textContent='Foto';
+      btnFoto.onclick = ()=>pickPhoto((data)=>{ state.opponent.photo=data; paintAll(); });
+      const btnDelFoto = document.createElement('button'); btnDelFoto.className='ghost avatarBtn'; btnDelFoto.textContent='Remover foto';
+      btnDelFoto.onclick = ()=>{ state.opponent.photo=null; paintAll(); save(); };
+      actions.appendChild(btnFoto); actions.appendChild(btnDelFoto);
+      card.appendChild(actions);
+      return card;
+    }
+    function profileCard(p){
+      const card = document.createElement('div'); card.className='card '+(p.role===roles.GK?'gk':'field');
+      const top = document.createElement('div'); top.className='avatarRow';
+      const av = document.createElement('div'); av.className='avatar lg'; setAvatarEl(av, p); top.appendChild(av);
+      const nameRow = document.createElement('div'); nameRow.className='name'; nameRow.style.flex=1;
+      const input = document.createElement('input'); input.value=p.name; input.placeholder=p.role===roles.GK?'Guarda‑redes':'Atleta';
+      input.onchange = ()=>{ p.name = input.value.trim()||p.name; paintAll(); save(); };
+      nameRow.appendChild(input); top.appendChild(nameRow); card.appendChild(top);
+
+      const actions = document.createElement('div'); actions.className='avatarRow';
+      const sel = document.createElement('select'); sel.className='roleSel';
+      sel.innerHTML = `<option value="F"${p.role===roles.F?' selected':''}>Campo</option>
+                       <option value="GK"${p.role===roles.GK?' selected':''}>GR</option>`;
+      sel.onchange = ()=>{ p.role = sel.value; paintAll(); save(); };
+      actions.appendChild(sel);
+
+      const btnFoto = document.createElement('button'); btnFoto.className='ghost avatarBtn'; btnFoto.textContent='Foto';
+      btnFoto.onclick = ()=>pickPhoto((data)=>{ p.photo=data; paintAll(); });
+      actions.appendChild(btnFoto);
+
+      const btnDelFoto = document.createElement('button'); btnDelFoto.className='ghost avatarBtn'; btnDelFoto.textContent='Remover foto';
+      btnDelFoto.onclick = ()=>{ p.photo=null; paintAll(); save(); };
+      actions.appendChild(btnDelFoto);
+
+      const del = document.createElement('button'); del.className='ghost'; del.textContent='Remover perfil';
+      del.onclick = ()=>{
+        if(Object.values(state.lineup).includes(p.id)){
+          alert('Este perfil está no alinhamento. Substitui primeiro antes de remover.'); return;
+        }
+        state.profiles = state.profiles.filter(x=>x.id!==p.id); paintAll(); save();
+      };
+      actions.appendChild(del);
+      card.appendChild(actions);
+      return card;
+    }
+    function paintProfiles(){
+      const grid = document.getElementById('profilesGrid'); grid.innerHTML='';
+      // Opponent first
+      grid.appendChild(opponentProfileCard());
+      // Team profiles
+      for(const p of state.profiles){ grid.appendChild(profileCard(p)); }
+      // Hook add buttons
+      document.getElementById('addFieldBtn').onclick = ()=>{ state.profiles.push(newProfile("", roles.F)); paintProfiles(); save(); };
+      document.getElementById('addGKBtn').onclick    = ()=>{ state.profiles.push(newProfile("", roles.GK)); paintProfiles(); save(); };
+    }
+
+    // ---------- Timer (drift-free, rAF) ----------
+    function setupRAF(){
+      function loop(){
+        const now = performance.now();
+        for(const half of HALVES){
+          const t = state.halves[half];
+          if(!t.running) { updatePanelPaused(half, true); continue; }
+          const elapsedMs = t.elapsedBeforeMs + (t.startedAtMs? (now - t.startedAtMs) : 0);
+          const elapsedSec = Math.floor(elapsedMs / 1000);
+          if(elapsedSec > t.lastCountedSec){
+            const delta = elapsedSec - t.lastCountedSec;
+            t.lastCountedSec = elapsedSec;
+            // accumulate seconds for players in lineup and 5x4 time
+            for(const k of ['GK','F1','F2','F3','F4']){
+              const id = state.lineup[k]; if(!id) continue;
+              const p = state.profiles.find(x=>x.id===id); if(!p) continue;
+              p.timeSec = (p.timeSec||0) + delta;
+            }
+            if(isFivevFourActive()){ state.fivevfour.timeSec += delta; state.fivevfour.parts[half].timeSec += delta; }
+            save();
+            if(document.getElementById('pageTempo').style.display!=='none'){ buildFivev4Box(); buildTimeTable(); }
+          }
+          // update displays
+          updateTimerDisplay(half);
+          updatePanelPaused(half, false);
+        }
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    }
+    function remainingSeconds(half){
+      const t = state.halves[half];
+      const now = performance.now();
+      const elapsedMs = t.elapsedBeforeMs + (t.running && t.startedAtMs ? (now - t.startedAtMs) : 0);
+      const remain = Math.max(0, t.duration - Math.floor(elapsedMs/1000));
+      return remain;
+    }
+    function secondsToMMSS(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), sec=s%60; return (m+'').padStart(2,'0')+':'+(sec+'').padStart(2,'0'); }
+    function updateTimerDisplay(half){
+      const el = document.getElementById('timerDisplay_'+half);
+      if(el) el.textContent = secondsToMMSS(remainingSeconds(half));
+    }
+    function toggleTimer(half){
+      const t = state.halves[half];
+      if(t.running){
+        const now = performance.now();
+        t.elapsedBeforeMs += (t.startedAtMs? (now - t.startedAtMs) : 0);
+        t.startedAtMs = null; t.running=false;
+      } else {
+        // Pause the other half to avoid double counting
+        const other = (half==='H1'?'H2':'H1');
+        if(state.halves[other].running){
+          const now = performance.now();
+          const o = state.halves[other];
+          o.elapsedBeforeMs += (o.startedAtMs? (now - o.startedAtMs) : 0);
+          o.startedAtMs=null; o.running=false;
+        }
+        t.startedAtMs = performance.now(); t.running=true;
+      }
+      updatePanelPaused(half, !state.halves[half].running);
+      save();
+    }
+    function resetTimer(half){
+      const t = state.halves[half];
+      t.running=false; t.startedAtMs=null; t.elapsedBeforeMs=0; t.lastCountedSec=0;
+      updateTimerDisplay(half); updatePanelPaused(half, true); save();
+    }
+    function updatePanelPaused(half, paused){
+      const panel = document.getElementById('panel_'+half);
+      if(!panel) return;
+      panel.classList.toggle('paused', paused);
+      panel.classList.toggle('green', half==='H1' && !paused);
+      panel.classList.toggle('orange', half==='H2' && !paused);
+      if(half==='H1' && paused) panel.classList.remove('green');
+      if(half==='H2' && paused) panel.classList.remove('orange');
+    }
+
+    // Helpers
+    function lineupProfile(slotKey){
+      const id = state.lineup[slotKey];
+      return state.profiles.find(p=>p.id===id) || null;
+    }
+    function setLineup(slotKey, profileId){
+      const prevId = state.lineup[slotKey];
+      state.lineup[slotKey] = profileId;
+      if(prevId !== profileId){
+        const pl = state.profiles.find(p=>p.id===profileId);
+        if(pl) pl.entries = (pl.entries||0)+1;
+      }
+      paintAll(); save();
+    }
+    function openPicker(btnEl, roleFilter, slotKey){
+      const listEl = btnEl.nextElementSibling;
+      if(listEl.classList.contains('open')){ listEl.classList.remove('open'); return; }
+      listEl.innerHTML='';
+      const used = new Set(Object.values(state.lineup));
+      const current = state.lineup[slotKey];
+      // candidates must match roleFilter (if given), be in profiles, and not already on pitch unless it's the current
+      const candidates = state.profiles.filter(p=>(!roleFilter || p.role===roleFilter) && (!used.has(p.id) || p.id===current));
+      for(const p of candidates){
+        const div = document.createElement('div');
+        div.textContent = p.name + (p.role===roles.GK?' (GR)':' (Campo)');
+        div.onclick = ()=>{ listEl.classList.remove('open'); setLineup(slotKey, p.id); };
+        listEl.appendChild(div);
+      }
+      listEl.classList.add('open');
+      const close = (e)=>{ if(!listEl.contains(e.target) && e.target!==btnEl){ listEl.classList.remove('open'); document.removeEventListener('click', close); } };
+      setTimeout(()=>document.addEventListener('click', close),0);
+    }
+
+    // Stats totals from parts
+    function statRecalcTotalsFromParts(p){
+      for(const key of ['S','OT','T','G','GA','SV','PC','PF','FO','YC','RC']){
+        const h1 = p.parts?.H1?.[key]||0, h2 = p.parts?.H2?.[key]||0;
+        p[key] = Math.max(0, h1 + h2);
+      }
+    }
+    function statIncProfileHalf(p, key, delta, half){
+      p.parts[half][key] = Math.max(0, (p.parts[half][key]||0) + delta);
+      statRecalcTotalsFromParts(p);
+    }
+    function oppRecalcTotals(){
+      for(const k of ['G','S','OT','T','FO','YC','RC']){
+        state.opponent[k] = Math.max(0, (state.opponent.parts.H1[k]||0) + (state.opponent.parts.H2[k]||0));
+      }
+    }
+    function oppIncHalf(key, delta, half){
+      state.opponent.parts[half][key] = Math.max(0, (state.opponent.parts[half][key]||0) + delta);
+      oppRecalcTotals();
+    }
+
+    // 5x4 helpers
+    function isFivevFourActive(){
+      const p = lineupProfile('GK');
+      return !!p && p.role===roles.F;
+    }
+    function fivev4Action(half, key, delta){
+      state.fivevfour.parts[half][key] = Math.max(0, (state.fivevfour.parts[half][key]||0)+delta);
+    }
+
+    // TEAM fouls (our side)
+    function ourFouls(half, cumulative){
+      let sum = 0;
+      for(const p of state.profiles){
+        if(cumulative){ sum += (p.parts.H1.FO||0) + (p.parts.H2.FO||0); }
+        else { sum += (p.parts[half].FO||0); }
+      }
+      return sum;
+    }
+
+    // Build grids for halves
+    function mkOpponentCard(prefix){
+      const c = document.createElement('div'); c.className='card opponent';
+      c.innerHTML = `
+        <div class="avatarRow">
+          <div class="avatar" id="${prefix}_oppAvatar">A</div>
+          <div class="name" style="flex:1"><input id="${prefix}_oppName" /></div>
+        </div>
+        <div class="stats field">
+          <div class="stat"><label>Golos</label><div class="count" id="${prefix}_opp_G">0</div><button class="plus" data-${prefix}-opp="G">+</button><button class="minus" data-${prefix}-opp="G">−</button></div>
+          <div class="stat"><label>Remates</label><div class="count" id="${prefix}_opp_S">0</div><button class="plus" data-${prefix}-opp="S">+</button><button class="minus" data-${prefix}-opp="S">−</button></div>
+          <div class="stat"><label>Baliza</label><div class="count" id="${prefix}_opp_OT">0</div><button class="plus" data-${prefix}-opp="OT">+</button><button class="minus" data-${prefix}-opp="OT">−</button></div>
+          <div class="stat"><label>Desarmes</label><div class="count" id="${prefix}_opp_T">0</div><button class="plus" data-${prefix}-opp="T">+</button><button class="minus" data-${prefix}-opp="T">−</button></div>
+        </div>`;
+      return c;
+    }
+    function mkGKCard(prefix){
+      const c = document.createElement('div'); c.className='card gk';
+      c.innerHTML = `
+        <div class="avatarRow">
+          <div class="avatar" id="${prefix}_gkAvatar">?</div>
+          <div class="name" style="flex:1"><input id="${prefix}_gkName" placeholder="Guarda‑redes ou 5x4" /></div>
+          <div class="picker">
+            <button id="${prefix}_gkPickBtn" class="ghost">Substituir</button>
+            <div id="${prefix}_gkPickList" class="pickerList"></div>
+          </div>
+        </div>
+        <div id="${prefix}_gkStatsWrap"></div>`;
+      return c;
+    }
+    function mkFieldCard(prefix, slotKey){
+      const c = document.createElement('div'); c.className='card field';
+      c.innerHTML = `
+        <div class="avatarRow">
+          <div class="avatar" id="${prefix}_${slotKey}Avatar">?</div>
+          <div class="name" style="flex:1"><input id="${prefix}_${slotKey}Name" placeholder="Atleta" /></div>
+          <div class="picker">
+            <button id="${prefix}_${slotKey}PickBtn" class="ghost">Substituir</button>
+            <div id="${prefix}_${slotKey}PickList" class="pickerList"></div>
+          </div>
+        </div>
+        <div class="stats field" id="${prefix}_${slotKey}Stats"></div>`;
+      return c;
+    }
+
+    function buildHalfLayout(half){
+      const topGrid = document.getElementById(half==='H1'?'h1GridTop':'h2GridTop');
+      const midGrid = document.getElementById(half==='H1'?'h1GridMid':'h2GridMid');
+      const botGrid = document.getElementById(half==='H1'?'h1GridBot':'h2GridBot');
+      topGrid.innerHTML=''; midGrid.innerHTML=''; botGrid.innerHTML='';
+
+      const pref = half;
+      topGrid.appendChild(mkOpponentCard(pref));
+      topGrid.appendChild(mkGKCard(pref));
+
+      midGrid.appendChild(mkFieldCard(pref,'F1'));
+      midGrid.appendChild(mkFieldCard(pref,'F2'));
+
+      botGrid.appendChild(mkFieldCard(pref,'F3'));
+      botGrid.appendChild(mkFieldCard(pref,'F4'));
+
+      // Bind pickers
+      document.getElementById(`${pref}_gkPickBtn`).onclick = (e)=>openPicker(e.target, null, 'GK');
+      ['F1','F2','F3','F4'].forEach(k=>{
+        document.getElementById(`${pref}_${k}PickBtn`).onclick = (e)=>openPicker(e.target, roles.F, k);
+      });
+
+      paintHalf(half);
+      // controls
+      document.getElementById('toggleTimerBtn_'+half).onclick = ()=>toggleTimer(half);
+      document.getElementById('resetTimerBtn_'+half).onclick = ()=>resetTimer(half);
+      buildMiniFouls(half);
+    }
+
+    function applyCountsToUI_Field(prefix, p, half, cumulative){
+      function set(id,val){ const el=document.getElementById(`${prefix}_${id}`); if(el) el.textContent = val||0; }
+      if(!p){ ['G','S','OT','T'].forEach(id=>set(id,0)); return; }
+      const base = cumulative ? {
+        G:(p.parts.H1.G||0)+(p.parts.H2.G||0),
+        S:(p.parts.H1.S||0)+(p.parts.H2.S||0),
+        OT:(p.parts.H1.OT||0)+(p.parts.H2.OT||0),
+        T:(p.parts.H1.T||0)+(p.parts.H2.T||0),
+      } : p.parts[half];
+      set('G',base.G||0); set('S',base.S||0); set('OT',base.OT||0); set('T',base.T||0);
+    }
+    function applyCountsToUI_GK(prefix, p, half, cumulative){
+      function set(id,val){ const el=document.getElementById(`${prefix}_${id}`); if(el) el.textContent = val||0; }
+      if(!p) return;
+      if(p.role===roles.GK){
+        const base = cumulative ? {
+          GA:(p.parts.H1.GA||0)+(p.parts.H2.GA||0),
+          SV:(p.parts.H1.SV||0)+(p.parts.H2.SV||0),
+          PC:(p.parts.H1.PC||0)+(p.parts.H2.PC||0),
+          PF:(p.parts.H1.PF||0)+(p.parts.H2.PF||0),
+          S:(p.parts.H1.S||0)+(p.parts.H2.S||0),
+        } : p.parts[half];
+        set('GA',base.GA||0); set('SV',base.SV||0); set('PC',base.PC||0); set('PF',base.PF||0); set('S',base.S||0);
+      } else {
+        const base = cumulative ? {
+          G:(p.parts.H1.G||0)+(p.parts.H2.G||0),
+          S:(p.parts.H1.S||0)+(p.parts.H2.S||0),
+          OT:(p.parts.H1.OT||0)+(p.parts.H2.OT||0),
+          T:(p.parts.H1.T||0)+(p.parts.H2.T||0),
+        } : p.parts[half];
+        set('G',base.G||0); set('S',base.S||0); set('OT',base.OT||0); set('T',base.T||0);
+      }
+    }
+
+    function bindButtons_Field(prefix, p, half){
+      document.querySelectorAll(`[data-${prefix}]`).forEach(btn=>{
+        btn.onclick = ()=>{
+          if(!p) return;
+          const key = btn.getAttribute(`data-${prefix}`);
+          const delta = btn.classList.contains('plus')?1:-1;
+          statIncProfileHalf(p, key, delta, half);
+          if(key==='G'){ if(delta>0) state.score.us += 1; else state.score.us = Math.max(0, state.score.us - 1); }
+          if(isFivevFourActive()) fivev4Action(half, key, delta);
+          applyCountsToUI_Field(prefix, p, half, half==='H2');
+          updateScoreboards(); buildMiniFouls(half); save();
+        };
+      });
+    }
+    function bindButtons_GK(prefix, p, half){
+      // true GK
+      document.querySelectorAll(`[data-${prefix}-gk]`).forEach(btn=>{
+        btn.onclick = ()=>{
+          if(!p) return;
+          const key = btn.getAttribute(`data-${prefix}-gk`);
+          const delta = btn.classList.contains('plus')?1:-1;
+          statIncProfileHalf(p, key, delta, half);
+          if(key==='GA'){
+            if(delta>0){ state.score.them += 1; oppIncHalf('G', +1, half); }
+            else { state.score.them = Math.max(0, state.score.them - 1); oppIncHalf('G', -1, half); }
+          }
+          applyCountsToUI_GK(prefix, p, half, half==='H2');
+          paintOpponentHalf(half); updateScoreboards(); buildMiniFouls(half); save();
+        };
+      });
+      // GK slot with field player
+      document.querySelectorAll(`[data-${prefix}-gkf]`).forEach(btn=>{
+        btn.onclick = ()=>{
+          if(!p) return;
+          const key = btn.getAttribute(`data-${prefix}-gkf`);
+          const delta = btn.classList.contains('plus')?1:-1;
+          statIncProfileHalf(p, key, delta, half);
+          if(key==='G'){ if(delta>0) state.score.us += 1; else state.score.us = Math.max(0, state.score.us - 1); }
+          if(isFivevFourActive()) fivev4Action(half, key, delta);
+          applyCountsToUI_GK(prefix, p, half, half==='H2');
+          updateScoreboards(); buildMiniFouls(half); save();
+        };
+      });
+    }
+
+    function paintOpponentHalf(half){
+      const cum = (half==='H2');
+      const pref = half;
+      const nameEl = document.getElementById(`${pref}_oppName`);
+      if(nameEl){ nameEl.value = state.opponent.name || 'Adversária'; nameEl.onchange = ()=>{ state.opponent.name = nameEl.value.trim()||'Adversária'; paintAll(); save(); }; }
+      ['G','S','OT','T'].forEach(k=>{
+        const el = document.getElementById(`${pref}_opp_${k}`);
+        if(!el) return;
+        const val = cum ? (state.opponent.parts.H1[k]||0)+(state.opponent.parts.H2[k]||0)
+                        : (state.opponent.parts[half][k]||0);
+        el.textContent = val;
+      });
+      const av = document.getElementById(`${pref}_oppAvatar`);
+      if(av){
+        setAvatarFromPhoto(av, state.opponent.photo, 'A');
+      }
+      // Bind buttons
+      document.querySelectorAll(`[data-${pref}-opp]`).forEach(btn=>{
+        const key = btn.getAttribute(`data-${pref}-opp`);
+        btn.onclick = ()=>{
+          const delta = btn.classList.contains('plus')?1:-1;
+          oppIncHalf(key, delta, half);
+          if(key==='G'){
+            const gk = lineupProfile('GK');
+            if(delta>0){ state.score.them += 1; if(gk){ statIncProfileHalf(gk,'GA',+1,half); } }
+            else { state.score.them = Math.max(0, state.score.them - 1); if(gk && (gk.parts[half].GA||0)>0){ statIncProfileHalf(gk,'GA',-1,half); } }
+            paintGKHalf('H1'); paintGKHalf('H2');
+          }
+          paintOpponentHalf(half); updateScoreboards(); buildMiniFouls(half); save();
+        };
+      });
+    }
+
+    function buildFieldStatsHTML(prefix){
+      return `
+        <div class="stat"><label>Golos</label><div class="count" id="${prefix}_G">0</div><button class="plus" data-${prefix}="G">+</button><button class="minus" data-${prefix}="G">−</button></div>
+        <div class="stat"><label>Remates</label><div class="count" id="${prefix}_S">0</div><button class="plus" data-${prefix}="S">+</button><button class="minus" data-${prefix}="S">−</button></div>
+        <div class="stat"><label>Baliza</label><div class="count" id="${prefix}_OT">0</div><button class="plus" data-${prefix}="OT">+</button><button class="minus" data-${prefix}="OT">−</button></div>
+        <div class="stat"><label>Desarmes</label><div class="count" id="${prefix}_T">0</div><button class="plus" data-${prefix}="T">+</button><button class="minus" data-${prefix}="T">−</button></div>
+      `;
+    }
+    function buildGKStatsHalfHTML(prefix, p){
+      if(!p || p.role===roles.GK){
+        return `
+          <div class="stats">
+            <div class="stat"><label>GOLOS SOFRIDOS</label><div class="count" id="${prefix}_GA">0</div><button class="plus" data-${prefix}-gk="GA">+</button><button class="minus" data-${prefix}-gk="GA">−</button></div>
+            <div class="stat"><label>Defesas</label><div class="count" id="${prefix}_SV">0</div><button class="plus" data-${prefix}-gk="SV">+</button><button class="minus" data-${prefix}-gk="SV">−</button></div>
+            <div class="stat"><label>Passes ✓</label><div class="count" id="${prefix}_PC">0</div><button class="plus" data-${prefix}-gk="PC">+</button><button class="minus" data-${prefix}-gk="PC">−</button></div>
+            <div class="stat"><label>Passes ✗</label><div class="count" id="${prefix}_PF">0</div><button class="plus" data-${prefix}-gk="PF">+</button><button class="minus" data-${prefix}-gk="PF">−</button></div>
+            <div class="stat"><label>Remates</label><div class="count" id="${prefix}_S">0</div><button class="plus" data-${prefix}-gk="S">+</button><button class="minus" data-${prefix}-gk="S">−</button></div>
+          </div>`;
+      } else {
+        return `<div class="stats field">` + buildFieldStatsHTML(prefix.replace('_gk','_gkf')) + `</div>`;
+      }
+    }
+
+    function paintGKHalf(half){
+      const cum = (half==='H2'); const pref = half+'_gk';
+      const pGK = lineupProfile('GK');
+      const nameEl = document.getElementById(`${pref}Name`);
+      const avEl = document.getElementById(`${pref}Avatar`);
+      if(nameEl) nameEl.value = pGK ? pGK.name : '';
+      if(avEl) setAvatarEl(avEl, pGK);
+      const wrap = document.getElementById(`${pref}StatsWrap`);
+      if(wrap){ wrap.innerHTML = buildGKStatsHalfHTML(pref, pGK); }
+      if(pGK) applyCountsToUI_GK(pref, pGK, half, cum);
+      // bind
+      if(document.getElementById(`${pref}PickBtn`)) document.getElementById(`${pref}PickBtn`).onclick = (e)=>openPicker(e.target, null, 'GK');
+      if(pGK) bindButtons_GK(pref, pGK, half);
+    }
+
+    function paintFieldsHalf(half){
+      const cum = (half==='H2'); const pref = half;
+      ['F1','F2','F3','F4'].forEach(k=>{
+        const p = lineupProfile(k);
+        const av = document.getElementById(`${pref}_${k}Avatar`); if(av) setAvatarEl(av, p);
+        const nameId = `${pref}_${k}Name`; const statsId = `${pref}_${k}Stats`;
+        const statsWrap = document.getElementById(statsId); if(statsWrap) statsWrap.innerHTML = buildFieldStatsHTML(`${pref}_${k.toLowerCase()}`);
+        const pickBtn = document.getElementById(`${pref}_${k}PickBtn`); if(pickBtn) pickBtn.onclick = (e)=>openPicker(e.target, roles.F, k);
+        if(nameId) document.getElementById(nameId).value = p ? p.name : '';
+        applyCountsToUI_Field(`${pref}_${k.toLowerCase()}`, p, half, cum);
+        if(p) bindButtons_Field(`${pref}_${k.toLowerCase()}`, p, half);
+      });
+    }
+
+    function updateScoreboards(){
+      document.getElementById('ourScore_H1').textContent = state.score.us;
+      document.getElementById('theirScore_H1').textContent = state.score.them;
+      document.getElementById('ourScore_H2').textContent = state.score.us;
+      document.getElementById('theirScore_H2').textContent = state.score.them;
+      document.getElementById('ourFouls_H1').textContent = ourFouls('H1', false);
+      document.getElementById('theirFouls_H1').textContent = state.opponent.parts.H1.FO||0;
+      document.getElementById('ourFouls_H2').textContent = ourFouls('H2', true); // cumulative
+      document.getElementById('theirFouls_H2').textContent = (state.opponent.parts.H1.FO||0)+(state.opponent.parts.H2.FO||0);
+    }
+
+    function paintHalf(half){
+      // opponent
+      paintOpponentHalf(half);
+      // GK
+      paintGKHalf(half);
+      // Fields
+      paintFieldsHalf(half);
+      // Timers display + scoreboard
+      updateTimerDisplay(half);
+      updateScoreboards();
+      updatePanelPaused(half, !state.halves[half].running);
+    }
+
+    // MINI FOUL CARDS
+    function miniFoulCard(title, getAvatar, getCounts, onChange){
+      const c = document.createElement('div'); c.className='hcard';
+      const av = document.createElement('div'); av.className='avatar'; getAvatar(av); c.appendChild(av);
+      const name = document.createElement('div'); name.className='hname'; name.textContent = title; c.appendChild(name);
+      const wrap = document.createElement('div'); wrap.className='foulBtns';
+      function mk(label, key, initial){
+        const g = document.createElement('div'); g.className='foulGroup';
+        const ct = document.createElement('div'); ct.className='count'; ct.textContent = initial||0;
+        const plus = document.createElement('button'); plus.className='mini plus'; plus.textContent='+';
+        const minus = document.createElement('button'); minus.className='mini minus'; minus.textContent='−';
+        plus.onclick = ()=>{ const v=onChange(key,+1); ct.textContent = v; updateScoreboards(); };
+        minus.onclick = ()=>{ const v=onChange(key,-1); ct.textContent = v; updateScoreboards(); };
+        g.appendChild(document.createTextNode(label)); g.appendChild(ct); g.appendChild(plus); g.appendChild(minus);
+        wrap.appendChild(g);
+      }
+      const counts = getCounts();
+      mk('FO','FO', counts.FO||0); mk('Y','YC', counts.YC||0); mk('R','RC', counts.RC||0);
+      c.appendChild(wrap);
+      return c;
+    }
+    function buildMiniFouls(half){
+      const container = document.getElementById('miniFouls_'+half); if(!container) return;
+      const cum = (half==='H2');
+      container.innerHTML='';
+      // Order: opponent, GK, F1..F4
+      container.appendChild(miniFoulCard(state.opponent.name||'Adversária',
+        (av)=>setAvatarFromPhoto(av, state.opponent.photo, 'A'),
+        ()=> cum ? {
+          FO:(state.opponent.parts.H1.FO||0)+(state.opponent.parts.H2.FO||0),
+          YC:(state.opponent.parts.H1.YC||0)+(state.opponent.parts.H2.YC||0),
+          RC:(state.opponent.parts.H1.RC||0)+(state.opponent.parts.H2.RC||0),
+        } : state.opponent.parts[half],
+        (key,delta)=>{ oppIncHalf(key, delta, half); save(); return cum ? (state.opponent.parts.H1[key]||0)+(state.opponent.parts.H2[key]||0) : state.opponent.parts[half][key]; }
+      ));
+      const order = ['GK','F1','F2','F3','F4'];
+      for(const k of order){
+        const p = lineupProfile(k); if(!p) continue;
+        container.appendChild(miniFoulCard(p.name,
+          (av)=>setAvatarEl(av,p),
+          ()=> cum ? {
+            FO:(p.parts.H1.FO||0)+(p.parts.H2.FO||0),
+            YC:(p.parts.H1.YC||0)+(p.parts.H2.YC||0),
+            RC:(p.parts.H1.RC||0)+(p.parts.H2.RC||0),
+          } : p.parts[half],
+          (key,delta)=>{ statIncProfileHalf(p,key,delta,half); save(); return cum ? (p.parts.H1[key]||0)+(p.parts.H2[key]||0) : p.parts[half][key]; }
+        ));
+      }
+    }
+
+    // TEMPO PAGE
+    function buildFivev4Box(){
+      const b = state.fivevfour, H1=b.parts.H1, H2=b.parts.H2;
+      function fmt(sec){ const mins = (Math.max(0,sec)/60).toFixed(1).replace('.',','); return `${mins} min`; }
+      const wrap = document.getElementById('fivev4Box');
+      wrap.innerHTML = `
+        <span class="pill">5x4 Tempo Total: ${fmt(b.timeSec)}</span>
+        <span class="pill">1ª: ${fmt(H1.timeSec)}</span>
+        <span class="pill">2ª: ${fmt(H2.timeSec)}</span>
+        <span class="pill">5x4 G=${(H1.G+H2.G)} S=${(H1.S+H2.S)} OT=${(H1.OT+H2.OT)} T=${(H1.T+H2.T)}</span>
+      `;
+    }
+    function buildTimeTable(){
+      const wrap = document.getElementById('timeTableWrap');
+      const filter = document.getElementById('tempoFilter').value;
+      const rows = [];
+      for(const p of state.profiles){
+        const total = p.timeSec||0;
+        const entradas = p.entries||0;
+        const stats = (filter==='ALL') ? p : (p.parts && p.parts[filter]) ? p.parts[filter] : {};
+        rows.push({ name:p.name, role:p.role, total, entradas, media: entradas>0?Math.floor(total/entradas):0,
+          G:stats.G||0, S:stats.S||0, OT:stats.OT||0, T:stats.T||0, GA:stats.GA||0, SV:stats.SV||0, PC:stats.PC||0, PF:stats.PF||0, FO:stats.FO||0, YC:stats.YC||0, RC:stats.RC||0 });
+      }
+      rows.sort((a,b)=>b.total-a.total);
+      function fmtMin(sec){ return (Math.max(0,sec)/60).toFixed(1).replace('.',','); }
+      let html = `<table><thead><tr>
+        <th>Jogadora</th><th>Pos.</th><th>Tempo (min)</th><th>Entradas</th><th>Média (min)</th>
+        <th>G</th><th>S</th><th>OT</th><th>T</th><th>GA</th><th>SV</th><th>PC</th><th>PF</th><th>FO</th><th>Y</th><th>R</th>
+      </tr></thead><tbody>`;
+      for(const r of rows){
+        html += `<tr>
+          <td>${escapeHtml(r.name)}</td><td>${r.role}</td><td>${fmtMin(r.total)}</td><td>${r.entradas}</td><td>${fmtMin(r.media)}</td>
+          <td>${r.G}</td><td>${r.S}</td><td>${r.OT}</td><td>${r.T}</td><td>${r.GA}</td><td>${r.SV}</td><td>${r.PC}</td><td>${r.PF}</td><td>${r.FO}</td><td>${r.YC}</td><td>${r.RC}</td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
+    }
+
+    function toCSV(){
+      const rows = [["Match","Jogadora","Pos","Tempo(s)","Entradas","Média(s)",
+                     "G","S","OT","T","GA","SV","PC","PF","FO","YC","RC",
+                     "H1_G","H1_S","H1_OT","H1_T","H1_GA","H1_SV","H1_PC","H1_PF","H1_FO","H1_YC","H1_RC",
+                     "H2_G","H2_S","H2_OT","H2_T","H2_GA","H2_SV","H2_PC","H2_PF","H2_FO","H2_YC","H2_RC",
+                     "Score_Us","Score_Them",
+                     "Opp_H1_G","Opp_H1_S","Opp_H1_OT","Opp_H1_T","Opp_H1_FO","Opp_H1_YC","Opp_H1_RC",
+                     "Opp_H2_G","Opp_H2_S","Opp_H2_OT","Opp_H2_T","Opp_H2_FO","Opp_H2_YC","Opp_H2_RC",
+                     "Opp_Total_G","Opp_Total_S","Opp_Total_OT","Opp_Total_T","Opp_Total_FO","Opp_Total_YC","Opp_Total_RC",
+                     "5x4_Time","5x4_H1_Time","5x4_H2_Time","5x4_G","5x4_S","5x4_OT","5x4_T"]];
+      const b = state.fivevfour, H1b=b.parts.H1, H2b=b.parts.H2;
+      for(const p of state.profiles){
+        const P1 = p.parts?.H1||{}; const P2 = p.parts?.H2||{};
+        rows.push([state.matchName,p.name,p.role,p.timeSec||0,p.entries||0,(p.entries?Math.floor((p.timeSec||0)/p.entries):0),
+          p.G||0,p.S||0,p.OT||0,p.T||0,p.GA||0,p.SV||0,p.PC||0,p.PF||0,p.FO||0,p.YC||0,p.RC||0,
+          P1.G||0,P1.S||0,P1.OT||0,P1.T||0,P1.GA||0,P1.SV||0,P1.PC||0,P1.PF||0,P1.FO||0,P1.YC||0,P1.RC||0,
+          P2.G||0,P2.S||0,P2.OT||0,P2.T||0,P2.GA||0,P2.SV||0,P2.PC||0,P2.PF||0,P2.FO||0,P2.YC||0,P2.RC||0,
+          state.score.us,state.score.them,
+          state.opponent.parts.H1.G||0,state.opponent.parts.H1.S||0,state.opponent.parts.H1.OT||0,state.opponent.parts.H1.T||0,state.opponent.parts.H1.FO||0,state.opponent.parts.H1.YC||0,state.opponent.parts.H1.RC||0,
+          state.opponent.parts.H2.G||0,state.opponent.parts.H2.S||0,state.opponent.parts.H2.OT||0,state.opponent.parts.H2.T||0,state.opponent.parts.H2.FO||0,state.opponent.parts.H2.YC||0,state.opponent.parts.H2.RC||0,
+          state.opponent.G,state.opponent.S,state.opponent.OT,state.opponent.T,state.opponent.FO,state.opponent.YC,state.opponent.RC,
+          b.timeSec,H1b.timeSec,H2b.timeSec,(H1b.G+H2b.G),(H1b.S+H2b.S),(H1b.OT+H2b.OT),(H1b.T+H2b.T)
+        ]);
+      }
+      return rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
+    }
+
+    function download(filename, text){
+      const a = document.createElement('a');
+      a.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(text));
+      a.setAttribute('download', filename);
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[s])); }
+
+    // DEFINIÇÕES
+    document.getElementById('applyDefsBtn').onclick = ()=>{
+      const m1 = Math.max(1, parseInt(document.getElementById('defMin_H1').value||'20',10));
+      const m2 = Math.max(1, parseInt(document.getElementById('defMin_H2').value||'20',10));
+      state.halves.H1.duration = m1*60;
+      state.halves.H2.duration = m2*60;
+      // reset remaining (do not auto-start)
+      resetTimer('H1'); resetTimer('H2');
+      updateTimerDisplay('H1'); updateTimerDisplay('H2'); save();
+      alert('Tempos aplicados.');
+    };
+
+    function paintAll(){
+      document.getElementById('matchLabel').textContent = state.matchName;
+      // profiles
+      paintProfiles();
+      // half layouts
+      buildHalfLayout('H1');
+      buildHalfLayout('H2');
+      // tempo
+      buildFivev4Box();
+      buildTimeTable();
+      updateScoreboards();
+    }
+
+    // Init
+    load();
+  </script>
+</body>
+</html>
